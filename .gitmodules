@@ -1,0 +1,3 @@
+[submodule "rs_bridge/rsopenapi"]
+	path = rs_bridge/rsopenapi
+	url = https://github.com/RobBurgers/rsopenapi.git
