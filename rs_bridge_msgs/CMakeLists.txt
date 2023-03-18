@@ -15,14 +15,14 @@ find_package(nav_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 set(msg_files
-  "BallPickup.msg"
-  "HwStatus.msg"
-  "Metadata.msg"
-  "Object.msg"
-  "PassDetail.msg"
-  "PassRequest"
-  "PlayerStatus.msg"
-  "WorldModel.msg"
+  "msg/BallPickup.msg"
+  "msg/HwStatus.msg"
+  "msg/Metadata.msg"
+  "msg/Object.msg"
+  "msg/PassDetail.msg"
+  "msg/PassRequest.msg"
+  "msg/PlayerStatus.msg"
+  "msg/WorldModel.msg"
 )
 
 set(srv_files
