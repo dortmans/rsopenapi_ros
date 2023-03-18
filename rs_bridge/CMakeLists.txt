@@ -23,8 +23,6 @@ find_package(builtin_interfaces REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
-find_package(sensor_msgs REQUIRED)
-find_package(diagnostic_msgs REQUIRED)
 find_package(action_msgs REQUIRED)
 find_package(rs_bridge_msgs REQUIRED)
 
@@ -71,8 +69,6 @@ ament_target_dependencies(rs_bridge_node
   "std_msgs"
   "geometry_msgs"
   "nav_msgs"
-  "sensor_msgs"
-  "diagnostic_msgs"
   "action_msgs"
   "rs_bridge_msgs"
 )

@@ -11,14 +11,18 @@ find_package(builtin_interfaces REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
-find_package(sensor_msgs REQUIRED)
-find_package(diagnostic_msgs REQUIRED)
 
 find_package(rosidl_default_generators REQUIRED)
 
 set(msg_files
-  "msg/Empty.msg"
-  # etc
+  "BallPickup.msg"
+  "HwStatus.msg"
+  "Metadata.msg"
+  "Object.msg"
+  "PassDetail.msg"
+  "PassRequest"
+  "PlayerStatus.msg"
+  "WorldModel.msg"
 )
 
 set(srv_files
@@ -27,7 +31,7 @@ set(srv_files
 )
 
 set(action_files
-  "action/Empty.action"
+  "action/Kick.action"
   # etc
 )
 
@@ -35,6 +39,7 @@ set(msg_dependencies
   builtin_interfaces
   std_msgs
   geometry_msgs
+  nav_msgs
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
