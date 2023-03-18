@@ -16,7 +16,7 @@ find_package(ament_cmake REQUIRED)
 find_package(ament_cmake_python REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
-find_package(rclcpp_lifecycle REQUIRED)#   libxerces-c3-dev \
+find_package(rclcpp_lifecycle REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(builtin_interfaces REQUIRED)
@@ -57,13 +57,12 @@ target_include_directories(rs_bridge_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/rsopenapi/rtdb2/utils/include>
   $<INSTALL_INTERFACE:include>)
   
-target_compile_features(rs_bridge_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
+#target_compile_features(rs_bridge_node PUBLIC c_std_99 cxx_std_17)  # Require C99 and C++17
 
 ament_target_dependencies(rs_bridge_node
   "rclcpp"
   "rclcpp_action"
   "rclcpp_lifecycle"
-  "rclpy"
   "tf2_ros"
   "builtin_interfaces"
   "std_msgs"
@@ -98,7 +97,6 @@ install(DIRECTORY
   config
   DESTINATION share/${PROJECT_NAME}
 )
-
 install(FILES
 	rsopenapi/config/rtdb_configuration.xml
 	DESTINATION lib/${PROJECT_NAME}
