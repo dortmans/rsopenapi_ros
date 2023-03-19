@@ -26,21 +26,11 @@ find_package(nav_msgs REQUIRED)
 find_package(action_msgs REQUIRED)
 find_package(rs_bridge_msgs REQUIRED)
 
-# rsopenapi pre-requisites: 
-# sudo apt install -y 
-#		liblmdb-dev \
-#		libmsgpack-dev \
-#		xsdcxx \
-#		libboost-all-dev \
-#   liblz4-dev \
-#   libzstd-dev \
-#   libxerces-c3-dev
-#
 add_subdirectory(rsopenapi)
 # ALTERNATIVE: add_library() instead of add_subdirectory(). Needs building of rsopenapi project first.
 #set(RSOPENAPI_LIB_LOCATION "${CMAKE_BINARY_DIR}/${CMAKE_PROJECT_NAME}/rsopenapi/src/librsopenapi.a")
 #set(RTDB_LIB_LOCATION "${CMAKE_BINARY_DIR}/${CMAKE_PROJECT_NAME}/rsopenapi/rtdb2/rtdb2/libRtDBrtdb.a")
-#add_library(rsopenapi STATIC#   libxerces-c3-dev \ IMPORTED)
+#add_library(rsopenapi STATIC IMPORTED)
 #set_target_properties(rsopenapi PROPERTIES IMPORTED_LOCATION ${RSOPENAPI_LIB_LOCATION})
 #add_library(RtDBrtdb STATIC IMPORTED)
 #set_target_properties(RtDBrtdb PROPERTIES IMPORTED_LOCATION ${RTDB_LIB_LOCATION})
@@ -74,12 +64,22 @@ ament_target_dependencies(rs_bridge_node
 
 target_link_libraries(rs_bridge_node
   rsopenapi
-  RtDBrtdb
+  RtDBrtdb # RtDB::rtdb
 )
 
 # Install C++ targets
-install(TARGETS rs_bridge_node
+install(TARGETS 
+  rs_bridge_node
   DESTINATION lib/${PROJECT_NAME})
+
+install(TARGETS 
+  RtDBcomm
+  DESTINATION lib)
+
+install(FILES
+  ${CMAKE_BINARY_DIR}/config/rtdb_configuration.xml
+  #rsopenapi/config/rtdb_configuration.xml
+	DESTINATION lib/${PROJECT_NAME})
 
 # Install Python modules
 ament_python_install_package(${PROJECT_NAME})
@@ -87,19 +87,15 @@ ament_python_install_package(${PROJECT_NAME})
 # Install Python executables (and other scripts)
 install(PROGRAMS
   #scripts/example_py_node.py
-  #scripts/example_script.sh
+  scripts/install_requirements.sh
   DESTINATION lib/${PROJECT_NAME}
 )
 
-# Install other directories and files
+# Install other directories
 install(DIRECTORY
   launch
   config
   DESTINATION share/${PROJECT_NAME}
-)
-install(FILES
-	rsopenapi/config/rtdb_configuration.xml
-	DESTINATION lib/${PROJECT_NAME}
 )
 
 if(BUILD_TESTING)
