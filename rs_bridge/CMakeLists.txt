@@ -35,6 +35,10 @@ add_subdirectory(rsopenapi)
 #add_library(RtDBrtdb STATIC IMPORTED)
 #set_target_properties(RtDBrtdb PROPERTIES IMPORTED_LOCATION ${RTDB_LIB_LOCATION})
 
+set(RTDB_CONFIG "rtdb_configuration.xml")
+configure_file("rsopenapi/config/${RTDB_CONFIG}" "${CMAKE_BINARY_DIR}/${RTDB_CONFIG}" COPYONLY)
+configure_file("rsopenapi/config/${RTDB_CONFIG}" "${CMAKE_INSTALL_PREFIX}/lib/${PROJECT_NAME}/${RTDB_CONFIG}" COPYONLY)
+
 # Define C++ targets
 add_executable(rs_bridge_node src/rs_bridge_node.cpp)
 
@@ -74,12 +78,8 @@ install(TARGETS
 
 install(TARGETS 
   RtDBcomm
+  RtDButils
   DESTINATION lib)
-
-install(FILES
-  ${CMAKE_BINARY_DIR}/config/rtdb_configuration.xml
-  #rsopenapi/config/rtdb_configuration.xml
-	DESTINATION lib/${PROJECT_NAME})
 
 # Install Python modules
 ament_python_install_package(${PROJECT_NAME})
