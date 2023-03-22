@@ -1,7 +1,7 @@
 # Vendor constant
-uint8 RDT_VENDOR_ID = 56
+#uint8 RDT_VENDOR_ID = 56
 
-uint8 vendor_id 56
+uint8 vendor_id 56		# RDT_VENDOR_ID
 uint8 shirt_number 0
 uint8 shirt_color 0
 
