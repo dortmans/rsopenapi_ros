@@ -8,6 +8,7 @@ Clone and build (assuming your workspace is `~/ros2_ws`):
 ```
 cd ~/ros2_ws/src
 git clone --recurse-submodules https://github.com/dortmans/rsopenapi_ros.git
+./rsopenapi_ros/rs_bridge/scripts/install_requirements.sh
 cd ..
 colcon build --symlink-install --packages-up-to rs_bridge
 source ./install/setup.bash
