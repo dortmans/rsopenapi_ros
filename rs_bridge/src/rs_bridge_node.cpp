@@ -3,11 +3,17 @@
 #include "Service.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "rs_bridge_msgs/msg/world_model.hpp"
-#include "geometry_msgs/msg/twist.hpp"
 #include "nav_msgs/msg/odometry.hpp"
+#include "geometry_msgs/msg/pose_stamped.hpp"
+#include "geometry_msgs/msg/twist.hpp"
+#include <geometry_msgs/msg/vector3_stamped.hpp>
 #include "geometry_msgs/msg/transform_stamped.hpp"
+#include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_listener.h"
 #include "tf2_ros/transform_broadcaster.h"
 #include "tf2/LinearMath/Quaternion.h"
+//#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
 using namespace std::chrono_literals;
 
@@ -48,9 +54,14 @@ public:
                             std::bind(&RsBridgeNode::twist_callback, this, std::placeholders::_1));
 
         timer_ = this->create_wall_timer(
-            1000ms, //std::chrono::milliseconds(1000),
+            1000ms, //same as std::chrono::milliseconds(1000),
             std::bind(&RsBridgeNode::timer_callback, this));
-    }
+
+
+        // Get transforms from/to MSL coordinate system
+        tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
+        tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+   }
 
 private:
 
@@ -66,6 +77,42 @@ private:
         }
         return std::stoull(s);
     }
+/*
+    geometry_msgs::msg::TransformStamped tf_lookup(const std::string from_frame, const std::string to_frame)
+    {
+        try {
+          geometry_msgs::msg::TransformStamped transform = tf_buffer_->lookupTransform(
+            to_frame, from_frame,
+            tf2::TimePointZero, 
+						tf2::durationFromSec(1.0));
+        } catch (const tf2::TransformException & e) {
+            RCLCPP_DEBUG(
+            get_logger(),
+            "Failed to get transform: (%s)", e.what());
+        }
+        return transform;    
+    }
+*/
+    template<typename T>
+		bool tf_transform(
+				const T input_pose,
+				T transformed_pose,
+				const std::string target_frame)
+    {
+        try
+        {
+					transformed_pose = tf_buffer_->transform(
+      			input_pose, target_frame,
+      			tf2::durationFromSec(1.0));
+    			return true;
+        } catch (const tf2::TransformException & e) {
+            RCLCPP_DEBUG(
+            get_logger(),
+            "Failed to transform: (%s)", e.what());
+        }
+				return false;
+    }
+
 
     void timer_callback()
     {
@@ -73,86 +120,86 @@ private:
         {
             // successful read
 
-            std::cout << "Robot at (" << data_.self.pose.x << ", " << data_.self.pose.y << ", " << data_.self.pose.rz << ")" 
-                      << "; Control ball: " << data_.player_status.control_ball << std::endl;
-
             RCLCPP_INFO(this->get_logger(), "Publish Odometry and WorldModel");
 
-            //!!!!!!!!!!!
-            // TODO: rotate 90 degrees from Robocup frame to ROS frame
-            //!!!!!!!!!!!
+            rclcpp::Time now = this->get_clock()->now();
 
+            // Get current robot pose
+            geometry_msgs::msg::PoseStamped msl_pose, ros_pose;
+						msl_pose.header.stamp = now; // TODO: use ts
+            msl_pose.header.frame_id = "map_msl";
+            msl_pose.pose.position.x = data_.self.pose.x;
+            msl_pose.pose.position.y = data_.self.pose.y;
+            msl_pose.pose.position.z = 0.0;
             tf2::Quaternion q;
-            q.setRPY(0,0,data_.self.pose.rz);
+            q.setRPY(0, 0, data_.self.pose.rz);
+						msl_pose.pose.orientation = tf2::toMsg(q);
 
+            // Transform pose from MSL to ROS coordinate frame
+            tf_transform<geometry_msgs::msg::PoseStamped>(msl_pose, ros_pose, "map");
+
+						// Get current robot velocity
+						geometry_msgs::msg::Vector3Stamped msl_velocity, ros_velocity;
+						msl_velocity.header.stamp = now; // TODO: use ts
+            msl_velocity.header.frame_id = "base_link_msl";
+						msl_velocity.vector.x = data_.self.vel.x;
+            msl_velocity.vector.y = data_.self.vel.y;
+            msl_velocity.vector.z = 0.0;
+						
+						// Transform velocity from MSL to ROS coordinate frame
+						tf_transform<geometry_msgs::msg::Vector3Stamped>(msl_velocity, ros_velocity, "base_link");
+					
             // Publish odometry message
-
             nav_msgs::msg::Odometry odom;
-            odom.header.stamp = this->get_clock()->now(); // TODO: use ts
+            odom.header.stamp = ros_pose.header.stamp;
             odom.header.frame_id = "odom";
-
-            //set the position
-            odom.pose.pose.position.x = data_.self.pose.x;
-            odom.pose.pose.position.y = data_.self.pose.y;
-            odom.pose.pose.position.z = 0.0;
-            odom.pose.pose.orientation.x = q.getX();
-            odom.pose.pose.orientation.y = q.getY();
-            odom.pose.pose.orientation.z = q.getZ();
-            odom.pose.pose.orientation.w = q.getW();
-
-            //set the velocity
+						odom.pose.pose = ros_pose.pose;
             odom.child_frame_id = "base_link";
-            odom.twist.twist.linear.x = data_.self.vel.x;
-            odom.twist.twist.linear.y = data_.self.vel.y;
-            odom.twist.twist.angular.z = 0.0;
-
-            //publish the message
+						odom.twist.twist.linear = ros_velocity.vector;
             odom_publisher_->publish(odom);  
 
             if (tf_broadcast_) {
-                    
                 // Broadcast odom transform
-
-                geometry_msgs::msg::TransformStamped odom_trans;
-                odom_trans.header.stamp = this->get_clock()->now(); // TODO: use ts
-                odom_trans.header.frame_id = "odom";
-                odom_trans.child_frame_id = "base_link";
-
-                odom_trans.transform.translation.x = data_.self.pose.x;
-                odom_trans.transform.translation.y = data_.self.pose.y;
-                odom_trans.transform.rotation.x = q.getX();
-                odom_trans.transform.rotation.y = q.getY();
-                odom_trans.transform.rotation.z = q.getZ();
-                odom_trans.transform.rotation.w = q.getW();
-                odom_broadcaster_->sendTransform(odom_trans);
+                geometry_msgs::msg::TransformStamped odom_tf;
+                odom_tf.header.stamp = ros_pose.header.stamp;
+                odom_tf.header.frame_id = "odom";
+                odom_tf.child_frame_id = "base_link";
+								odom_tf.transform.translation.x = ros_pose.pose.position.x;
+								odom_tf.transform.translation.y = ros_pose.pose.position.y;
+								odom_tf.transform.translation.y = ros_pose.pose.position.z;
+                odom_tf.transform.rotation = ros_pose.pose.orientation;
+                odom_broadcaster_->sendTransform(odom_tf);
             }
-
         }
         else
         {
             // unsuccessful read
-            std::cout << "No data" << std::endl;
+						RCLCPP_INFO(this->get_logger(), "No data");
         }
-
-        robot_->writeVelocity(0, 0, 0);        
+       
     }
 
     void twist_callback(const geometry_msgs::msg::Twist::SharedPtr msg)
     {
-        RCLCPP_INFO(this->get_logger(), "Received Twist");       
+        RCLCPP_INFO(this->get_logger(), "Received Twist"); 
+
+				robot_->writeVelocity(0, 0, 0);       
     }
 
-    std::shared_ptr<tf2_ros::TransformBroadcaster> odom_broadcaster_;
     rclcpp::Publisher<rs_bridge_msgs::msg::WorldModel>::SharedPtr wm_publisher_;
     rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_publisher_;
     rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr twist_subscriber_;
     rclcpp::TimerBase::SharedPtr timer_;
 
+    std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
+    std::shared_ptr<tf2_ros::TransformBroadcaster> odom_broadcaster_;
+ 
+    bool tf_broadcast_;
+    
     std::shared_ptr<rsopen::Service> service_;
     std::shared_ptr<rsopen::Robot> robot_;
-    rsopen::interrobot_t data_;
-
-    bool tf_broadcast_;
+    rsopen::interrobot_t data_;   
 };
 
 int main(int argc, char **argv)

@@ -20,6 +20,7 @@ find_package(rclcpp_lifecycle REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_ros REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
@@ -60,6 +61,7 @@ ament_target_dependencies(rs_bridge_node
   "rclcpp_lifecycle"
   "tf2"
   "tf2_ros"
+  "tf2_geometry_msgs"
   "builtin_interfaces"
   "std_msgs"
   "geometry_msgs"
