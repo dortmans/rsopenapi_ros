@@ -1,5 +1,5 @@
 # Request
-float32 speed 0			#
+float32 speed 0
 bool is_lob false
 ---
 # Result
