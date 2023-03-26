@@ -29,7 +29,7 @@ public:
 
         auto robot_id = this->get_parameter("robot").as_int();
         auto hash_str = this->get_parameter("hash").as_string();
-        auto tf_broadcast_ = get_parameter("tf").as_bool();
+        tf_broadcast_ = this->get_parameter("tf").as_bool();
 
         RCLCPP_INFO(this->get_logger(), "Bridge for robot: %ld with hash: %s",
                     robot_id,
@@ -54,7 +54,7 @@ public:
                             std::bind(&RsBridgeNode::twist_callback, this, std::placeholders::_1));
 
         timer_ = this->create_wall_timer(
-            1000ms, //same as std::chrono::milliseconds(1000),
+            25ms, //same as std::chrono::milliseconds(25),
             std::bind(&RsBridgeNode::timer_callback, this));
 
 
@@ -120,7 +120,7 @@ private:
         {
             // successful read
 
-            RCLCPP_INFO(this->get_logger(), "Publish Odometry and WorldModel");
+            //RCLCPP_INFO(this->get_logger(), "Publish Odometry and WorldModel");
 
             rclcpp::Time now = this->get_clock()->now();
 
@@ -148,6 +148,8 @@ private:
 						
 						// Transform velocity from MSL to ROS coordinate frame
 						tf_transform<geometry_msgs::msg::Vector3Stamped>(msl_velocity, ros_velocity, "base_link");
+
+						//RCLCPP_INFO(this->get_logger(), "Publish Odometry");
 					
             // Publish odometry message
             nav_msgs::msg::Odometry odom;
@@ -159,7 +161,9 @@ private:
             odom_publisher_->publish(odom);  
 
             if (tf_broadcast_) {
-                // Broadcast odom transform
+								//RCLCPP_INFO(this->get_logger(), "Broadcast odom-->base_link");
+
+                // Broadcast odom-->baselink transform
                 geometry_msgs::msg::TransformStamped odom_tf;
                 odom_tf.header.stamp = ros_pose.header.stamp;
                 odom_tf.header.frame_id = "odom";

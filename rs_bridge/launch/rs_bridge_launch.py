@@ -18,7 +18,7 @@ def generate_launch_description():
             description='Robot hash'
         ),
         DeclareLaunchArgument(
-            'tf', default_value='false',
+            'tf', default_value='true',
             description='TF broadcast enabled'
         ),
         Node(
@@ -48,14 +48,6 @@ def generate_launch_description():
             						'--yaw', '-1.57079632679', '--pitch', '0', '--roll', '0', 
             						'--frame-id', 'map', 
             						'--child-frame-id', 'map_msl']
-        ),
-       Node(
-            package='tf2_ros',
-            executable='static_transform_publisher',
-            arguments = ['--x', '0', '--y', '0', '--z', '0', 
-            						'--yaw', '0', '--pitch', '0', '--roll', '0', 
-            						'--frame-id', 'odom', 
-            						'--child-frame-id', 'odom_msl']
         ),
         Node(
             package='tf2_ros',
