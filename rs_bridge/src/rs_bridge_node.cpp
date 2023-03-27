@@ -120,6 +120,9 @@ private:
         {
             // successful read
 
+            //std::cout << "Robot at (" << data_.self.pose.x << ", " << data_.self.pose.y << ", " << data_.self.pose.rz << ")" 
+            //          << "; Control ball: " << data_.player_status.control_ball << std::endl;           
+
             //RCLCPP_INFO(this->get_logger(), "Publish Odometry and WorldModel");
 
             rclcpp::Time now = this->get_clock()->now();
@@ -174,6 +177,49 @@ private:
                 odom_tf.transform.rotation = ros_pose.pose.orientation;
                 odom_broadcaster_->sendTransform(odom_tf);
             }
+
+            // Publish worldmodel message
+            rs_bridge_msgs::msg::WorldModel wm;
+            wm.header.stamp = now; // TODO: use ts
+            // Metadata
+            wm.metadata.version = data_.metadata.version;
+	          wm.metadata.hash = data_.metadata.hash;
+	          wm.metadata.tick = data_.metadata.tick;
+
+            // HwStatus
+            //wm.hw_status.*
+
+            // PlayerStatus 
+            //wm.player_status.*
+            wm.player_status.control_ball = data_.player_status.control_ball;
+
+            // local
+            wm.self.header.stamp = now; // TODO: use ts
+            wm.self.header.frame_id = "map";
+						wm.self.pose = ros_pose.pose;
+            wm.self.child_frame_id = "base_link";
+						wm.self.twist.linear = ros_velocity.vector;
+            wm.self.confidence = data_.self.confidence;
+
+            // local ball
+            wm.ball.header.stamp = now; // TODO: use ts
+            wm.ball.header.frame_id = "map";
+						//wm.ball.pose = ros ball pose
+            wm.ball.child_frame_id = "base_link";
+						//wm.ball.twist = ros ball twist
+            wm.ball.confidence = data_.ball.confidence;
+
+            // local obstacles 
+            //wm.obstacles
+
+            // fused
+
+            // pass
+
+            // planner
+
+            wm_publisher_->publish(wm);  
+
         }
         else
         {
@@ -183,6 +229,7 @@ private:
        
     }
 
+    
     void twist_callback(const geometry_msgs::msg::Twist::SharedPtr msg)
     {
         RCLCPP_INFO(this->get_logger(), "Received Twist"); 
