@@ -95,9 +95,9 @@ private:
 */
     template<typename T>
 		bool tf_transform(
-				const T input_pose,
-				T transformed_pose,
-				const std::string target_frame)
+				const T& input_pose,
+				T& transformed_pose,
+				const std::string& target_frame)
     {
         try
         {
@@ -122,8 +122,6 @@ private:
 
             //std::cout << "Robot at (" << data_.self.pose.x << ", " << data_.self.pose.y << ", " << data_.self.pose.rz << ")" 
             //          << "; Control ball: " << data_.player_status.control_ball << std::endl;           
-
-            //RCLCPP_INFO(this->get_logger(), "Publish Odometry and WorldModel");
 
             rclcpp::Time now = this->get_clock()->now();
 
