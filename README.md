@@ -14,8 +14,7 @@ colcon build --symlink-install --packages-up-to rs_bridge
 source ./install/setup.bash
 ```
 
-
-## Run simulator and gui.
+## Run the RobotSports simulator and gui.
 
 Open new terminal window and run following commands to start the simulator:
 ```
@@ -29,6 +28,12 @@ Open a second terminal window and execute following command to start the gui in 
 cd ~/ros2_ws/src/rsopenapi_ros/rs_bridge/rsopenapi/scripts
 ./gui.sh
 ```
+
+Check the checkbox of robot 1 and select '3d-Field view'.
+
+Use the robogui to change its operation mode to rsopenapi: Tactics -> Behavior 'rsopenapi' -> Activate
+
+More details can be found [here](rs_bridge/rsopenapi/README.md).
 
 ## Run the RSOPENAPI Bridge.
 
@@ -46,7 +51,4 @@ Example run with arguments:
 ```
 ros2 launch rs_bridge rs_bridge_launch.py robot:=1 hash:="'0x7d9066e102eb9a4f'"
 ```
-
-
-
 
