@@ -8,11 +8,12 @@
 #include "geometry_msgs/msg/twist.hpp"
 #include <geometry_msgs/msg/vector3_stamped.hpp>
 #include "geometry_msgs/msg/transform_stamped.hpp"
+#include "builtin_interfaces/msg/duration.hpp"
+#include "builtin_interfaces/msg/time.hpp"
 #include "tf2_ros/buffer.h"
 #include "tf2_ros/transform_listener.h"
 #include "tf2_ros/transform_broadcaster.h"
 #include "tf2/LinearMath/Quaternion.h"
-//#include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
 using namespace std::chrono_literals;
@@ -113,6 +114,63 @@ private:
 				return false;
     }
 
+    geometry_msgs::msg::PoseStamped to_pose(
+        const builtin_interfaces::msg::Time& stamp,
+        const std::string& frame_id,
+        double x,
+        double y,
+        double z,
+        double roll,
+        double pitch,
+        double yaw)
+    {
+        geometry_msgs::msg::PoseStamped pose;
+				pose.header.stamp = stamp;
+        pose.header.frame_id = frame_id;
+        pose.pose.position.x = x;
+        pose.pose.position.y = y;
+        pose.pose.position.z = z;
+        tf2::Quaternion q;
+        q.setRPY(roll, pitch, yaw);
+				pose.pose.orientation = tf2::toMsg(q);
+
+        return pose;
+    }
+
+   geometry_msgs::msg::Vector3Stamped to_velocity(
+        const builtin_interfaces::msg::Time& stamp,
+        const std::string& frame_id,
+        double x_vel,
+        double y_vel,
+        double z_vel)
+    {
+				geometry_msgs::msg::Vector3Stamped velocity;
+				velocity.header.stamp = stamp;
+        velocity.header.frame_id = frame_id;
+				velocity.vector.x = x_vel;
+        velocity.vector.y = y_vel;
+        velocity.vector.z = z_vel;
+
+        return velocity;
+    }
+
+    rclcpp::Time stamp_from_ts(float ts)
+    {
+        // ts: seconds since midnight
+        
+        using days = std::chrono::duration
+          <int, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+        
+        auto now = std::chrono::system_clock::now();
+        auto midnight = std::chrono::floor<days>(now);
+        auto midnight_since_epoch = std::chrono::duration_cast<std::chrono::nanoseconds>(midnight.time_since_epoch());
+
+        uint64_t ts_nanoseconds = static_cast<uint64_t>(ts * 1e9);
+        float nanoseconds_since_epoch = midnight_since_epoch.count() + ts_nanoseconds;
+        rclcpp::Time stamp(nanoseconds_since_epoch);
+
+        return stamp;
+    }
 
     void timer_callback()
     {
@@ -124,10 +182,14 @@ private:
             //          << "; Control ball: " << data_.player_status.control_ball << std::endl;           
 
             rclcpp::Time now = this->get_clock()->now();
+            rclcpp::Time stamp = now;;
 
             // Get current robot pose
-            geometry_msgs::msg::PoseStamped msl_pose, ros_pose;
-						msl_pose.header.stamp = now; // TODO: use ts
+            geometry_msgs::msg::PoseStamped msl_pose;
+            stamp = stamp_from_ts(data_.self.ts);
+            msl_pose = to_pose(stamp, "map_msl", data_.self.pose.x, data_.self.pose.y, 0, 0, 0, data_.self.pose.rz);
+/*
+						msl_pose.header.stamp = stamp;
             msl_pose.header.frame_id = "map_msl";
             msl_pose.pose.position.x = data_.self.pose.x;
             msl_pose.pose.position.y = data_.self.pose.y;
@@ -135,28 +197,39 @@ private:
             tf2::Quaternion q;
             q.setRPY(0, 0, data_.self.pose.rz);
 						msl_pose.pose.orientation = tf2::toMsg(q);
-
-            // Transform pose from MSL to ROS coordinate frame
+*/
+            // Transform pose from MSL to ROS map coordinate frame
+            geometry_msgs::msg::PoseStamped ros_pose;
             tf_transform<geometry_msgs::msg::PoseStamped>(msl_pose, ros_pose, "map");
 
 						// Get current robot velocity
-						geometry_msgs::msg::Vector3Stamped msl_velocity, ros_velocity;
-						msl_velocity.header.stamp = now; // TODO: use ts
+            geometry_msgs::msg::Vector3Stamped msl_velocity;
+            stamp = stamp_from_ts(data_.self.ts);
+            msl_velocity = to_velocity(stamp, "base_link_msl", data_.self.vel.x, data_.self.vel.y, 0);
+/*
+						msl_velocity.header.stamp = stamp
             msl_velocity.header.frame_id = "base_link_msl";
 						msl_velocity.vector.x = data_.self.vel.x;
             msl_velocity.vector.y = data_.self.vel.y;
             msl_velocity.vector.z = 0.0;
-						
-						// Transform velocity from MSL to ROS coordinate frame
+*/
+
+						// Transform velocity from MSL to ROS base_link coordinate frame
+            geometry_msgs::msg::Vector3Stamped ros_velocity;
 						tf_transform<geometry_msgs::msg::Vector3Stamped>(msl_velocity, ros_velocity, "base_link");
 
 						//RCLCPP_INFO(this->get_logger(), "Publish Odometry");
+
+            // Transform pose from ROS map coordinate frame to ROS odom frame
+            geometry_msgs::msg::PoseStamped ros_odom_pose;
+            tf_transform<geometry_msgs::msg::PoseStamped>(ros_pose, ros_odom_pose, "odom");
 					
             // Publish odometry message
+
             nav_msgs::msg::Odometry odom;
-            odom.header.stamp = ros_pose.header.stamp;
+            odom.header.stamp = ros_odom_pose.header.stamp;
             odom.header.frame_id = "odom";
-						odom.pose.pose = ros_pose.pose;
+						odom.pose.pose = ros_odom_pose.pose;
             odom.child_frame_id = "base_link";
 						odom.twist.twist.linear = ros_velocity.vector;
             odom_publisher_->publish(odom);  
@@ -165,21 +238,23 @@ private:
 								//RCLCPP_INFO(this->get_logger(), "Broadcast odom-->base_link");
 
                 // Broadcast odom-->baselink transform
+
                 geometry_msgs::msg::TransformStamped odom_tf;
-                odom_tf.header.stamp = ros_pose.header.stamp;
+                odom_tf.header.stamp = ros_odom_pose.header.stamp;
                 odom_tf.header.frame_id = "odom";
                 odom_tf.child_frame_id = "base_link";
-								odom_tf.transform.translation.x = ros_pose.pose.position.x;
-								odom_tf.transform.translation.y = ros_pose.pose.position.y;
-								odom_tf.transform.translation.y = ros_pose.pose.position.z;
-                odom_tf.transform.rotation = ros_pose.pose.orientation;
+								odom_tf.transform.translation.x = ros_odom_pose.pose.position.x;
+								odom_tf.transform.translation.y = ros_odom_pose.pose.position.y;
+								odom_tf.transform.translation.z = ros_odom_pose.pose.position.z;
+                odom_tf.transform.rotation = ros_odom_pose.pose.orientation;
                 odom_broadcaster_->sendTransform(odom_tf);
             }
 
-            // Publish worldmodel message
+            // Build and publish worldmodel message
+
             rs_bridge_msgs::msg::WorldModel wm;
-            wm.header.stamp = now; // TODO: use ts
             // Metadata
+            wm.header.stamp = now; // TODO: use ts
             wm.metadata.version = data_.metadata.version;
 	          wm.metadata.hash = data_.metadata.hash;
 	          wm.metadata.tick = data_.metadata.tick;
@@ -188,7 +263,6 @@ private:
             //wm.hw_status.*
 
             // PlayerStatus 
-            //wm.player_status.*
             wm.player_status.control_ball = data_.player_status.control_ball;
 
             // local
