@@ -22,18 +22,6 @@ def generate_launch_description():
             description='TF broadcast enabled'
         ),
         Node(
-            package='rs_bridge',
-            executable='rs_bridge_node',
-            name='rs_bridge',
-            parameters=[
-                {'robot': LaunchConfiguration('robot')},
-                {'hash': LaunchConfiguration('hash')},
-                {'tf': LaunchConfiguration('tf')}
-            ],
-            output='screen',
-            emulate_tty=True
-        ),
-        Node(
             package='tf2_ros',
             executable='static_transform_publisher',
             arguments = ['--x', '0', '--y', '0', '--z', '0', 
@@ -56,5 +44,17 @@ def generate_launch_description():
             						'--yaw', '0', '--pitch', '0', '--roll', '0', 
             						'--frame-id', 'map', 
             						'--child-frame-id', 'odom']
+        ),
+        Node(
+            package='rs_bridge',
+            executable='rs_bridge_node',
+            name='rs_bridge',
+            parameters=[
+                {'robot': LaunchConfiguration('robot')},
+                {'hash': LaunchConfiguration('hash')},
+                {'tf': LaunchConfiguration('tf')}
+            ],
+            output='screen',
+            emulate_tty=True
         ),
     ])

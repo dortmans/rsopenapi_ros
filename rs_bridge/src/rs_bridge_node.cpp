@@ -79,7 +79,7 @@ private:
         return std::stoull(s);
     }
 /*
-    geometry_msgs::msg::TransformStamped tf_lookup(const std::string from_frame, const std::string to_frame)
+    geometry_msgs::msg::TransformStamped tf_lookup(const std::string& from_frame, const std::string& to_frame)
     {
         try {
           geometry_msgs::msg::TransformStamped transform = tf_buffer_->lookupTransform(
@@ -162,12 +162,17 @@ private:
           <int, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
         
         auto now = std::chrono::system_clock::now();
+        auto now_since_epoch = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch());
         auto midnight = std::chrono::floor<days>(now);
         auto midnight_since_epoch = std::chrono::duration_cast<std::chrono::nanoseconds>(midnight.time_since_epoch());
 
         uint64_t ts_nanoseconds = static_cast<uint64_t>(ts * 1e9);
-        float nanoseconds_since_epoch = midnight_since_epoch.count() + ts_nanoseconds;
+        uint64_t nanoseconds_since_epoch = midnight_since_epoch.count() + ts_nanoseconds;
         rclcpp::Time stamp(nanoseconds_since_epoch);
+
+        //std::cout << "now_since_epoch: " << now_since_epoch.count() 
+        //            << " nanoseconds_since_epoch: " << nanoseconds_since_epoch 
+        //            << " diff: " << now_since_epoch.count()-nanoseconds_since_epoch << std::endl; 
 
         return stamp;
     }
@@ -182,7 +187,7 @@ private:
             //          << "; Control ball: " << data_.player_status.control_ball << std::endl;           
 
             rclcpp::Time now = this->get_clock()->now();
-            rclcpp::Time stamp = now;;
+            rclcpp::Time stamp = now;
 
             // Get current robot pose
             geometry_msgs::msg::PoseStamped msl_pose;
@@ -254,7 +259,7 @@ private:
 
             rs_bridge_msgs::msg::WorldModel wm;
             // Metadata
-            wm.header.stamp = now; // TODO: use ts
+            wm.header.stamp = stamp; // TODO: use ts
             wm.metadata.version = data_.metadata.version;
 	          wm.metadata.hash = data_.metadata.hash;
 	          wm.metadata.tick = data_.metadata.tick;
@@ -266,15 +271,17 @@ private:
             wm.player_status.control_ball = data_.player_status.control_ball;
 
             // local
-            wm.self.header.stamp = now; // TODO: use ts
+            wm.self.header.stamp = stamp; // TODO: use ts
             wm.self.header.frame_id = "map";
 						wm.self.pose = ros_pose.pose;
             wm.self.child_frame_id = "base_link";
 						wm.self.twist.linear = ros_velocity.vector;
             wm.self.confidence = data_.self.confidence;
 
+
+
             // local ball
-            wm.ball.header.stamp = now; // TODO: use ts
+            wm.ball.header.stamp = stamp; // TODO: use ts
             wm.ball.header.frame_id = "map";
 						//wm.ball.pose = ros ball pose
             wm.ball.child_frame_id = "base_link";
