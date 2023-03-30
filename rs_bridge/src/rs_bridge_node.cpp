@@ -137,6 +137,49 @@ private:
         return pose;
     }
 
+
+    nav_msgs::msg::Odometry to_odom(
+        const builtin_interfaces::msg::Time& stamp,
+        const std::string& frame_id,
+        double x,
+        double y,
+        double z,
+        double roll,
+        double pitch,
+        double yaw)
+    {
+            // Get current pose
+            geometry_msgs::msg::PoseStamped msl_pose;
+            msl_pose = to_pose(stamp, "map_msl", data_.self.pose.x, data_.self.pose.y, 0, 0, 0, data_.self.pose.rz);
+
+            // Transform pose from MSL to ROS map coordinate frame
+            geometry_msgs::msg::PoseStamped ros_pose;
+            tf_transform<geometry_msgs::msg::PoseStamped>(msl_pose, ros_pose, "map");
+
+						// Get current velocity
+            geometry_msgs::msg::Vector3Stamped msl_velocity;
+            msl_velocity = to_velocity(stamp, "base_link_msl", data_.self.vel.x, data_.self.vel.y, 0);
+
+						// Transform velocity from MSL to ROS base_link coordinate frame
+            geometry_msgs::msg::Vector3Stamped ros_velocity;
+						tf_transform<geometry_msgs::msg::Vector3Stamped>(msl_velocity, ros_velocity, "base_link");
+
+            // Transform pose from ROS map coordinate frame to ROS odom frame
+            geometry_msgs::msg::PoseStamped ros_odom_pose;
+            tf_transform<geometry_msgs::msg::PoseStamped>(ros_pose, ros_odom_pose, "odom");
+					
+            // Build odometry message
+            nav_msgs::msg::Odometry odom;
+            odom.header.stamp = ros_odom_pose.header.stamp;
+            odom.header.frame_id = "odom";
+						odom.pose.pose = ros_odom_pose.pose;
+            odom.child_frame_id = "base_link";
+						odom.twist.twist.linear = ros_velocity.vector;
+
+        return odom;
+    }
+
+
    geometry_msgs::msg::Vector3Stamped to_velocity(
         const builtin_interfaces::msg::Time& stamp,
         const std::string& frame_id,
@@ -207,6 +250,10 @@ private:
             geometry_msgs::msg::PoseStamped ros_pose;
             tf_transform<geometry_msgs::msg::PoseStamped>(msl_pose, ros_pose, "map");
 
+            // Transform pose from ROS map coordinate frame to ROS odom frame
+            geometry_msgs::msg::PoseStamped ros_odom_pose;
+            tf_transform<geometry_msgs::msg::PoseStamped>(ros_pose, ros_odom_pose, "odom");
+
 						// Get current robot velocity
             geometry_msgs::msg::Vector3Stamped msl_velocity;
             stamp = stamp_from_ts(data_.self.ts);
@@ -218,19 +265,13 @@ private:
             msl_velocity.vector.y = data_.self.vel.y;
             msl_velocity.vector.z = 0.0;
 */
-
 						// Transform velocity from MSL to ROS base_link coordinate frame
             geometry_msgs::msg::Vector3Stamped ros_velocity;
 						tf_transform<geometry_msgs::msg::Vector3Stamped>(msl_velocity, ros_velocity, "base_link");
 
 						//RCLCPP_INFO(this->get_logger(), "Publish Odometry");
-
-            // Transform pose from ROS map coordinate frame to ROS odom frame
-            geometry_msgs::msg::PoseStamped ros_odom_pose;
-            tf_transform<geometry_msgs::msg::PoseStamped>(ros_pose, ros_odom_pose, "odom");
-					
+				
             // Publish odometry message
-
             nav_msgs::msg::Odometry odom;
             odom.header.stamp = ros_odom_pose.header.stamp;
             odom.header.frame_id = "odom";
@@ -243,7 +284,6 @@ private:
 								//RCLCPP_INFO(this->get_logger(), "Broadcast odom-->base_link");
 
                 // Broadcast odom-->baselink transform
-
                 geometry_msgs::msg::TransformStamped odom_tf;
                 odom_tf.header.stamp = ros_odom_pose.header.stamp;
                 odom_tf.header.frame_id = "odom";
@@ -259,7 +299,8 @@ private:
 
             rs_bridge_msgs::msg::WorldModel wm;
             // Metadata
-            wm.header.stamp = stamp; // TODO: use ts
+            stamp = stamp_from_ts(data_.metadata.ts);
+            wm.header.stamp = stamp;
             wm.metadata.version = data_.metadata.version;
 	          wm.metadata.hash = data_.metadata.hash;
 	          wm.metadata.tick = data_.metadata.tick;
@@ -271,17 +312,17 @@ private:
             wm.player_status.control_ball = data_.player_status.control_ball;
 
             // local
-            wm.self.header.stamp = stamp; // TODO: use ts
+            stamp = stamp_from_ts(data_.self.ts);
+            wm.self.header.stamp = stamp;
             wm.self.header.frame_id = "map";
-						wm.self.pose = ros_pose.pose;
+						wm.self.pose.pose = ros_pose.pose;
             wm.self.child_frame_id = "base_link";
-						wm.self.twist.linear = ros_velocity.vector;
+						wm.self.twist.twist.linear = ros_velocity.vector;
             wm.self.confidence = data_.self.confidence;
 
-
-
             // local ball
-            wm.ball.header.stamp = stamp; // TODO: use ts
+            stamp = stamp_from_ts(data_.ball.ts);
+            wm.ball.header.stamp = stamp;
             wm.ball.header.frame_id = "map";
 						//wm.ball.pose = ros ball pose
             wm.ball.child_frame_id = "base_link";
