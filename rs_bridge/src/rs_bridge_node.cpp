@@ -57,9 +57,11 @@ public:
         timer_ = this->create_wall_timer(
             25ms, std::bind(&RsBridgeNode::timer_callback, this));
 
-        // Get transforms from/to MSL coordinate system
         tf_buffer_ = std::make_unique<tf2_ros::Buffer>(this->get_clock());
         tf_listener_ = std::make_shared<tf2_ros::TransformListener>(*tf_buffer_);
+        rclcpp::sleep_for(1s); // to wait for TF to come-up
+
+        last_twist_received_ = rclcpp::Time(0, 0, RCL_ROS_TIME);
 
    }
 
@@ -79,24 +81,6 @@ private:
         return std::stoull(s);
     }
 
-
-
-/*
-    geometry_msgs::msg::TransformStamped tf_lookup(const std::string& from_frame, const std::string& to_frame)
-    {
-        try {
-          geometry_msgs::msg::TransformStamped transform = tf_buffer_->lookupTransform(
-            to_frame, from_frame,
-            tf2::TimePointZero, 
-						tf2::durationFromSec(1.0));
-        } catch (const tf2::TransformException & e) {
-            RCLCPP_DEBUG(
-            get_logger(),
-            "Failed to get transform: (%s)", e.what());
-        }
-        return transform;    
-    }
-*/
 
     template<typename T>
 		bool tf_transform(
@@ -161,6 +145,25 @@ private:
     }
 
 
+    geometry_msgs::msg::Vector3Stamped to_msl_velocity(
+        double x_vel,
+        double y_vel,
+        double z_vel)
+    {
+        geometry_msgs::msg::Vector3Stamped msl_velocity, ros_velocity;
+
+        ros_velocity.header.frame_id = "base_link";
+				ros_velocity.vector.x = x_vel;
+        ros_velocity.vector.y = y_vel;
+        ros_velocity.vector.z = z_vel;
+
+				// Transform velocity from ROS to MSL base_link coordinate frame
+				tf_transform<geometry_msgs::msg::Vector3Stamped>(ros_velocity, msl_velocity, "base_link_msl");
+
+        return msl_velocity;
+    }
+
+
     rclcpp::Time ros_stamp_from_ts(float ts)
     {
         // ts: seconds since midnight
@@ -183,6 +186,9 @@ private:
 
     void timer_callback()
     {
+        // Current time
+        rclcpp::Time now = this->get_clock()->now();
+
         if (robot_->read(data_))
         {
           geometry_msgs::msg::PoseStamped ros_pose;
@@ -402,15 +408,27 @@ private:
             // unsuccessful read
 						RCLCPP_INFO(this->get_logger(), "No data");
         }
+
+        // Stop robot when not receiving Twist messages anymore
+        if ( (now - last_twist_received_) > rclcpp::Duration(1s) )
+        {
+          robot_->writeVelocity(0, 0, 0);
+        }
        
     }
 
     
     void twist_callback(const geometry_msgs::msg::Twist::SharedPtr msg)
     {
-        RCLCPP_INFO(this->get_logger(), "Received Twist"); 
+        //RCLCPP_INFO(this->get_logger(), "Received Twist");
 
-				robot_->writeVelocity(0, 0, 0);      
+        last_twist_received_ = this->get_clock()->now();
+
+        geometry_msgs::msg::Vector3Stamped msl_velocity;
+        msl_velocity = to_msl_velocity(msg->linear.x, msg->linear.y, 0);
+        
+        // set velocity in robot coordinates
+				robot_->writeVelocity(msl_velocity.vector.x, msl_velocity.vector.y, msg->angular.z);      
     }
 
 
@@ -422,6 +440,8 @@ private:
     std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
     std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
     std::shared_ptr<tf2_ros::TransformBroadcaster> odom_broadcaster_;
+
+    rclcpp::Time last_twist_received_;
  
     bool tf_broadcast_;
    
