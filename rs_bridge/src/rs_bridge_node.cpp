@@ -1,4 +1,5 @@
 #include <unistd.h>
+#include <math.h> 
 #include "Robot.hpp"
 #include "Service.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -93,6 +94,7 @@ private:
         transformed_pose = tf_buffer_->transform(
       		input_pose, target_frame,
       		tf2::durationFromSec(1.0));
+        transformed_pose.header.frame_id = target_frame;
     		return true;
       } catch (const tf2::TransformException & e) {
           RCLCPP_DEBUG(get_logger(), "Failed to transform: (%s)", e.what());
@@ -105,9 +107,11 @@ private:
         double x,
         double y,
         double z,
-        double roll,
-        double pitch,
-        double yaw)
+        double rz)
+    /*
+     * Position (x, y, z) is relative to world coordinate system
+     * Heading (rz) is relative to robot coordinate system
+    */
     {
         geometry_msgs::msg::PoseStamped msl_pose, ros_pose;
 
@@ -115,8 +119,9 @@ private:
         msl_pose.pose.position.x = x;
         msl_pose.pose.position.y = y;
         msl_pose.pose.position.z = z;
+        double yaw = rz + M_PI_2; // correction for angle between x and y axis
         tf2::Quaternion q;
-        q.setRPY(roll, pitch, yaw);
+        q.setRPY(0.0, 0.0, yaw);
 				msl_pose.pose.orientation = tf2::toMsg(q);
 
         // Transform pose from MSL to ROS map coordinate frame
@@ -130,6 +135,9 @@ private:
         double x_vel,
         double y_vel,
         double z_vel)
+    /*
+     * Velocity (x_vel, y_vel, z_vel) is relative to robot coordinate system
+    */
     {
         geometry_msgs::msg::Vector3Stamped msl_velocity, ros_velocity;
 
@@ -149,6 +157,9 @@ private:
         double x_vel,
         double y_vel,
         double z_vel)
+    /*
+     * Velocity (x_vel, y_vel, z_vel) is relative to robot coordinate system
+    */
     {
         geometry_msgs::msg::Vector3Stamped msl_velocity, ros_velocity;
 
@@ -165,9 +176,10 @@ private:
 
 
     rclcpp::Time ros_stamp_from_ts(float ts)
+    /*
+     * ts: seconds since midnight
+    */
     {
-        // ts: seconds since midnight
-        
         using days = std::chrono::duration
           <int, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
         
@@ -198,23 +210,13 @@ private:
           geometry_msgs::msg::Vector3Stamped msl_velocity;            
             
             // Current robot pose
-            ros_pose = to_ros_pose(data_.self.pose.x, data_.self.pose.y, 0, 0, 0, data_.self.pose.rz);
+            ros_pose = to_ros_pose(data_.self.pose.x, data_.self.pose.y, 0, data_.self.pose.rz);
 
 						// Current robot velocity
             ros_velocity = to_ros_velocity(data_.self.vel.x, data_.self.vel.y, 0);
 
             // Transform pose from ROS map coordinate frame to ROS odom frame
             tf_transform<geometry_msgs::msg::PoseStamped>(ros_pose, ros_odom_pose, "odom");
-
-            // Build and publish odometry message
-            nav_msgs::msg::Odometry odom;
-            odom.header.stamp = ros_stamp_from_ts(data_.self.ts);
-            odom.header.frame_id = "odom";
-						odom.pose.pose = ros_odom_pose.pose;
-            odom.child_frame_id = "base_link";
-						odom.twist.twist.linear = ros_velocity.vector;
-            
-            odom_publisher_->publish(odom);
 
             if (tf_broadcast_) {
                 // Broadcast odom-->baselink transform
@@ -229,6 +231,16 @@ private:
 
                 odom_broadcaster_->sendTransform(odom_tf);
             }
+
+            // Build and publish odometry message
+            nav_msgs::msg::Odometry odom;
+            odom.header.stamp = ros_stamp_from_ts(data_.self.ts);
+            odom.header.frame_id = "odom";
+						odom.pose.pose = ros_odom_pose.pose;
+            odom.child_frame_id = "base_link";
+						odom.twist.twist.linear = ros_velocity.vector;
+            
+            odom_publisher_->publish(odom);
 
             // Build and publish WorldModel message
             rs_bridge_msgs::msg::WorldModel wm;
@@ -272,7 +284,7 @@ private:
             wm.self.confidence = data_.self.confidence;
 
             // local ball
-            ros_pose = to_ros_pose(data_.ball.pos.x, data_.ball.pos.y, data_.ball.pos.z, 0, 0, 0);
+            ros_pose = to_ros_pose(data_.ball.pos.x, data_.ball.pos.y, data_.ball.pos.z, 0);
             ros_velocity = to_ros_velocity(data_.ball.vel.x, data_.ball.vel.y, data_.ball.vel.z);
             wm.ball.header.stamp = ros_stamp_from_ts(data_.ball.ts);
             wm.ball.header.frame_id = "map";
@@ -284,7 +296,7 @@ private:
             // local obstacles 
             for (auto & obstacle : data_.obstacles)
             {
-              ros_pose = to_ros_pose(obstacle.pose.x, obstacle.pose.y, 0, 0, 0, obstacle.pose.rz);
+              ros_pose = to_ros_pose(obstacle.pose.x, obstacle.pose.y, 0, obstacle.pose.rz);
               ros_velocity = to_ros_velocity(obstacle.vel.x, obstacle.vel.y, 0);
               object.header.stamp = ros_stamp_from_ts(obstacle.ts);
               object.header.frame_id = "map";
@@ -298,7 +310,7 @@ private:
             // fused
 
             // fused fball
-            ros_pose = to_ros_pose(data_.fball.pos.x, data_.fball.pos.y, data_.fball.pos.z, 0, 0, 0);
+            ros_pose = to_ros_pose(data_.fball.pos.x, data_.fball.pos.y, data_.fball.pos.z, 0);
             ros_velocity = to_ros_velocity(data_.fball.vel.x, data_.fball.vel.y, data_.fball.vel.z);
             wm.fball.header.stamp = ros_stamp_from_ts(data_.fball.ts);
             wm.fball.header.frame_id = "map";
@@ -310,7 +322,7 @@ private:
             // fused us
             for (auto & one_of_us : data_.us)
             {
-              ros_pose = to_ros_pose(one_of_us.pose.x, one_of_us.pose.y, 0, 0, 0, one_of_us.pose.rz);
+              ros_pose = to_ros_pose(one_of_us.pose.x, one_of_us.pose.y, 0, one_of_us.pose.rz);
               ros_velocity = to_ros_velocity(one_of_us.vel.x, one_of_us.vel.y, 0);
               object.header.stamp = ros_stamp_from_ts(one_of_us.ts);
               object.header.frame_id = "map";
@@ -324,7 +336,7 @@ private:
             // fused them
             for (auto & one_of_them : data_.them)
             {
-              ros_pose = to_ros_pose(one_of_them.pose.x, one_of_them.pose.y, 0, 0, 0, one_of_them.pose.rz);
+              ros_pose = to_ros_pose(one_of_them.pose.x, one_of_them.pose.y, 0, one_of_them.pose.rz);
               ros_velocity = to_ros_velocity(one_of_them.vel.x, one_of_them.vel.y, 0);
               object.header.stamp = ros_stamp_from_ts(one_of_them.ts);
               object.header.frame_id = "map";
@@ -336,7 +348,7 @@ private:
             }
 
             // fused selfloc
-            ros_pose = to_ros_pose(data_.selfloc.pose.x, data_.selfloc.pose.y, 0, 0, 0, data_.selfloc.pose.rz);
+            ros_pose = to_ros_pose(data_.selfloc.pose.x, data_.selfloc.pose.y, 0, data_.selfloc.pose.rz);
             ros_velocity = to_ros_velocity(data_.selfloc.vel.x, data_.selfloc.vel.y, 0);
             wm.selfloc.header.stamp = ros_stamp_from_ts(data_.selfloc.ts);
             wm.selfloc.header.frame_id = "map";
@@ -346,7 +358,7 @@ private:
             wm.selfloc.confidence = data_.selfloc.confidence;
 
             //wm.selfloc_omni.*
-            ros_pose = to_ros_pose(data_.selfloc_omni.pose.x, data_.selfloc_omni.pose.y, 0, 0, 0, data_.selfloc_omni.pose.rz);
+            ros_pose = to_ros_pose(data_.selfloc_omni.pose.x, data_.selfloc_omni.pose.y, 0, data_.selfloc_omni.pose.rz);
             ros_velocity = to_ros_velocity(data_.selfloc_omni.vel.x, data_.selfloc_omni.vel.y, 0);
             wm.selfloc_omni.header.stamp = ros_stamp_from_ts(data_.selfloc_omni.ts);
             wm.selfloc_omni.header.frame_id = "map";
@@ -365,22 +377,22 @@ private:
             wm.pass_detail.eta = data_.pass_detail.eta;
             wm.pass_detail.speed = data_.pass_detail.speed;
             wm.pass_detail.angle = data_.pass_detail.angle;
-            ros_pose = to_ros_pose(data_.pass_detail.origin.x, data_.pass_detail.origin.y, 0, 0, 0, 0);
+            ros_pose = to_ros_pose(data_.pass_detail.origin.x, data_.pass_detail.origin.y, 0, 0);
             wm.pass_detail.origin = ros_pose;
-            ros_pose = to_ros_pose(data_.pass_detail.target.x, data_.pass_detail.target.y, 0, 0, 0, 0);
+            ros_pose = to_ros_pose(data_.pass_detail.target.x, data_.pass_detail.target.y, 0, 0);
             wm.pass_detail.target = ros_pose;
 
             // pass_request
             wm.pass_request.header.stamp = ros_stamp_from_ts(data_.pass_request.ts);
             wm.pass_request.valid = data_.pass_request.valid;
             wm.pass_request.eta = data_.pass_request.eta;
-            ros_pose = to_ros_pose(data_.pass_request.target.x, data_.pass_request.target.y, 0, 0, 0, 0);
+            ros_pose = to_ros_pose(data_.pass_request.target.x, data_.pass_request.target.y, 0, 0);
             wm.pass_request.target = ros_pose;       
 
             // planner
 
             // planner ball_pickup
-            ros_pose = to_ros_pose(data_.ball_pickup.pos.x, data_.ball_pickup.pos.y, 0, 0, 0, 0);
+            ros_pose = to_ros_pose(data_.ball_pickup.pos.x, data_.ball_pickup.pos.y, 0, 0);
             wm.ball_pickup.header.stamp = ros_stamp_from_ts(data_.ball_pickup.ts);
             wm.ball_pickup.valid = data_.ball_pickup.valid;
             wm.ball_pickup.pos = ros_pose;
@@ -389,7 +401,7 @@ private:
             nav_msgs::msg::Path path;
             for (auto & pos : data_.planned_path)
             {
-              ros_pose = to_ros_pose(pos.x, pos.y, 0, 0, 0, 0);
+              ros_pose = to_ros_pose(pos.x, pos.y, 0, 0);
               wm.planned_path.poses.push_back(ros_pose);
             }
 
