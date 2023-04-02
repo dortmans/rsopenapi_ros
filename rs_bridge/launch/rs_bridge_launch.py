@@ -25,7 +25,7 @@ def generate_launch_description():
             package='tf2_ros',
             executable='static_transform_publisher',
             arguments = ['--x', '0', '--y', '0', '--z', '0', 
-            						'--yaw', '-1.57079632679', '--pitch', '0', '--roll', '0', 
+            						'--yaw', str(-pi/2), '--pitch', '0', '--roll', '0', 
             						'--frame-id', 'base_link', 
             						'--child-frame-id', 'base_link_msl']
         ),
@@ -33,7 +33,7 @@ def generate_launch_description():
             package='tf2_ros',
             executable='static_transform_publisher',
             arguments = ['--x', '0', '--y', '0', '--z', '0', 
-            						'--yaw', '-1.57079632679', '--pitch', '0', '--roll', '0', 
+            						'--yaw', str(-pi/2), '--pitch', '0', '--roll', '0', 
             						'--frame-id', 'map', 
             						'--child-frame-id', 'map_msl']
         ),
