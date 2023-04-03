@@ -124,7 +124,7 @@ private:
         q.setRPY(0.0, 0.0, yaw);
 				msl_pose.pose.orientation = tf2::toMsg(q);
 
-        // Transform pose from MSL to ROS map coordinate frame
+        // Transform pose to ROS world coordinate system (map)
         tf_transform<geometry_msgs::msg::PoseStamped>(msl_pose, ros_pose, "map");
 
         return ros_pose;
@@ -136,17 +136,17 @@ private:
         double y_vel,
         double z_vel)
     /*
-     * Velocity (x_vel, y_vel, z_vel) is relative to robot coordinate system
+     * Velocity vector (x_vel, y_vel, z_vel) is relative to MSL world coordinate system (map_msl)
+     * Transform velocity vector to ROS robot coordinate system (base_link)
     */
     {
         geometry_msgs::msg::Vector3Stamped msl_velocity, ros_velocity;
 
-        msl_velocity.header.frame_id = "base_link_msl";
+        msl_velocity.header.frame_id = "map_msl";
 				msl_velocity.vector.x = x_vel;
         msl_velocity.vector.y = y_vel;
         msl_velocity.vector.z = z_vel;
 
-				// Transform velocity from MSL to ROS base_link coordinate frame
 				tf_transform<geometry_msgs::msg::Vector3Stamped>(msl_velocity, ros_velocity, "base_link");
 
         return ros_velocity;
@@ -158,7 +158,8 @@ private:
         double y_vel,
         double z_vel)
     /*
-     * Velocity (x_vel, y_vel, z_vel) is relative to robot coordinate system
+     * Velocity vector (x_vel, y_vel, z_vel) is relative to ROS robot coordinate system (base_link)
+     * Transform velocity vector to MSL robot coordinate system (base_link_msl)
     */
     {
         geometry_msgs::msg::Vector3Stamped msl_velocity, ros_velocity;
@@ -168,7 +169,6 @@ private:
         ros_velocity.vector.y = y_vel;
         ros_velocity.vector.z = z_vel;
 
-				// Transform velocity from ROS to MSL base_link coordinate frame
 				tf_transform<geometry_msgs::msg::Vector3Stamped>(ros_velocity, msl_velocity, "base_link_msl");
 
         return msl_velocity;
@@ -189,8 +189,8 @@ private:
         auto midnight_since_epoch = std::chrono::duration_cast<std::chrono::nanoseconds>(midnight.time_since_epoch());
 
         uint64_t ts_nanoseconds = static_cast<uint64_t>(ts * 1e9);
-        uint64_t nanoseconds_since_epoch = midnight_since_epoch.count() + ts_nanoseconds;
-        rclcpp::Time stamp(nanoseconds_since_epoch);
+        uint64_t ts_nanoseconds_since_epoch = midnight_since_epoch.count() + ts_nanoseconds;
+        rclcpp::Time stamp(ts_nanoseconds_since_epoch);
 
         return stamp;
     }
