@@ -91,7 +91,6 @@ ament_python_install_package(${PROJECT_NAME})
 # Install Python executables (and other scripts)
 install(PROGRAMS
   #scripts/example_py_node.py
-  scripts/install_requirements.sh
   DESTINATION lib/${PROJECT_NAME}
 )
 
