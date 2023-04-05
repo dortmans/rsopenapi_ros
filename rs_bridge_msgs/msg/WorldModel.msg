@@ -1,5 +1,5 @@
 # Interrobot data
-# reference: rsopenapi/src/include/rtdb_types.h
+# reference: rs_bridge/rsopenapi/src/include/rtdb_types.h
 
 std_msgs/Header header # timestamp
 Metadata metadata
