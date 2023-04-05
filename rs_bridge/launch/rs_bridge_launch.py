@@ -6,6 +6,7 @@ from launch_ros.actions import Node
 
 from math import pi
 
+
 def generate_launch_description():
     namespace = ['robot', LaunchConfiguration('robot')]
     remappings = [('/tf', 'tf'),
@@ -20,7 +21,7 @@ def generate_launch_description():
             description='Robot hash'
         ),
         Node(
-        	#namespace=namespace,
+            # namespace=namespace,
             package='rs_bridge',
             executable='rs_bridge_node',
             name='rs_bridge',
@@ -28,6 +29,6 @@ def generate_launch_description():
                 {'robot': LaunchConfiguration('robot')},
                 {'hash': LaunchConfiguration('hash')}
             ],
-            #remappings=remappings
+            # remappings=remappings
         ),
     ])
