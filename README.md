@@ -2,6 +2,25 @@
 
 A bridge between [RobotSports](https://www.robotsports.nl) [*rsopenapi*](https://github.com/RobBurgers/rsopenapi) and ROS 2. Using the *rsopenapi bridge* ROS 2 nodes can subscribe to status information from a RobotSports soccer robot and publish control commands to make it act, e.g. move or kick.
 
+## rs_bridge
+
+Node
+* rs_bridge_node
+
+Publishes:
+* /odom ([nav_msgs/msg/Odometry](https://github.com/ros2/common_interfaces/blob/rolling/nav_msgs/msg/Odometry.msg))
+* /obstacles ([geometry_msgs/msg/PoseArray](https://github.com/ros2/common_interfaces/blob/rolling/geometry_msgs/msg/PoseArray.msg))
+* /worldmodel ([rs_bridge_msgs/msg/WorldModel](rs_bridge_msgs/msg/WorldModel.msg))
+* /tf (odom-->base_link)
+
+Subscribes:
+* /cmd_vel ([geometry_msgs/msg/Twist](https://github.com/ros2/common_interfaces/blob/rolling/geometry_msgs/msg/Twist.msg))
+
+
+Parameters
+* robot (id of robot)
+* hash (hash of robot)
+
 ## Installation
 
 Clone and build, assuming your workspace is `~/ros2_ws`:
@@ -52,5 +71,16 @@ Use the robogui to change its operation mode to rsopenapi: Tactics -> Behavior '
 
 More details can be found [here](rs_bridge/rsopenapi/README.md).
 
+## Test the bridge
 
+Open a new terminal window and enter following command to make the robot drive in a circle:
+```
+ros2 topic pub /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 1.0}, angular: {z: 0.5}}"
+```
 
+Odometry messages can be inspected as follows:
+```
+ros2 topic echo /odom --no-arr
+```
+
+Use `rviz2` (Add --> TF) to inspect TF frames.
