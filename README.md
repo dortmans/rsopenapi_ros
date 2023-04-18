@@ -69,7 +69,7 @@ Check the checkbox of robot 1 and select '3d-Field view'.
 
 Use the robogui to change its operation mode to rsopenapi: Tactics -> Behavior 'rsopenapi' -> Activate
 
-More details can be found [here](rs_bridge/rsopenapi/README.md).
+More details can be found [here](https://github.com/RobBurgers/rsopenapi/blob/master/README.md).
 
 ## Test the bridge
 
@@ -78,9 +78,16 @@ Open a new terminal window and enter following command to make the robot drive i
 ros2 topic pub /cmd_vel geometry_msgs/msg/Twist "{linear: {x: 1.0}, angular: {z: 0.5}}"
 ```
 
-Odometry messages can be inspected as follows:
+Instead joystick control can be launched as follows:
+```
+ros2 launch rs_bridge joystick.launch.py
+```
+
+Use following command in a new terminal windows to inspect Odometry messages:
 ```
 ros2 topic echo /odom --no-arr
 ```
 
-Use `rviz2` (Add --> TF) to inspect TF frames.
+Use `rviz2` (Add -> TF) to inspect TF frames.
+
+
