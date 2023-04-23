@@ -1,5 +1,6 @@
 #include <unistd.h>
 #include <math.h>
+#include <chrono>
 #include "Robot.hpp"
 #include "Service.hpp"
 #include "rclcpp/rclcpp.hpp"
@@ -19,6 +20,7 @@
 #include "tf2/LinearMath/Quaternion.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
+using namespace std::chrono;
 using namespace std::chrono_literals;
 
 class RsBridgeNode : public rclcpp::Node
@@ -199,13 +201,11 @@ private:
    * ts: seconds since midnight
    */
   {
-    using days = std::chrono::duration<int, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+    //using days = std::chrono::duration<int, std::ratio_multiply<std::ratio<24>, std::chrono::hours::period>>;
+    using days = duration<int, std::ratio<86400>>;
 
-    auto now = std::chrono::system_clock::now();
-    auto now_since_epoch = std::chrono::duration_cast<std::chrono::nanoseconds>(now.time_since_epoch());
-    auto midnight = std::chrono::floor<days>(now);
-    auto midnight_since_epoch = std::chrono::duration_cast<std::chrono::nanoseconds>(midnight.time_since_epoch());
-
+    auto midnight = time_point_cast<days>(system_clock::now());
+    auto midnight_since_epoch = duration_cast<nanoseconds>(midnight.time_since_epoch());
     uint64_t ts_nanoseconds = static_cast<uint64_t>(ts * 1e9);
     uint64_t ts_nanoseconds_since_epoch = midnight_since_epoch.count() + ts_nanoseconds;
     rclcpp::Time stamp(ts_nanoseconds_since_epoch);
